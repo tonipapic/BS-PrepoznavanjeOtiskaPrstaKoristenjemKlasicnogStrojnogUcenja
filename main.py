@@ -6,6 +6,7 @@ from sklearn import svm
 from skimage import io, filters
 from sklearn.metrics import accuracy_score, confusion_matrix
 from collections import Counter
+import matplotlib.pyplot as plt  # Dodan import za matplotlib
 
 # Putanja do direktorija sa slikama
 data_directory = "./dataset/train_data"
@@ -98,3 +99,17 @@ FRR = fn / (fn + tp) if (fn + tp) != 0 else 0
 
 print(f"FAR (False Acceptance Rate): {FAR * 100:.2f}%")
 print(f"FRR (False Rejection Rate): {FRR * 100:.2f}%")
+
+# Vizualizacija HOG značajki za prvi uzorak
+image_path = os.path.join(data_directory, all_files[0])  # Uzimanje prve slike
+image = io.imread(image_path, as_gray=True)
+fd, hog_image = hog(image, orientations=9, pixels_per_cell=(8, 8), cells_per_block=(2, 2), visualize=True)
+
+plt.figure(figsize=(8, 4))
+plt.subplot(121)
+plt.imshow(image, cmap=plt.cm.gray)
+plt.title('Original Image')
+plt.subplot(122)
+plt.imshow(hog_image, cmap=plt.cm.gray)
+plt.title('HOG Features')
+plt.show()
