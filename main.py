@@ -1,91 +1,66 @@
 import os
-import random
 import numpy as np
+import customtkinter as ctk
+from tkinter import filedialog
 from skimage.feature import hog
-from sklearn import svm
-from sklearn.model_selection import train_test_split
-from skimage import io, filters
-from sklearn.metrics import accuracy_score, confusion_matrix
-import matplotlib.pyplot as plt
-from collections import Counter
+from skimage import io, filters, transform
+from sklearn.metrics.pairwise import cosine_similarity
 
-# Putanja do direktorija sa slikama
-data_directory = "./dataset/train_data"  # Ovdje zamijeniti stvarnom putanjom
+IMAGE_SIZE = (128, 128)
 
-# Učitavanje svih .tif datoteka u direktoriju
-all_files = [f for f in os.listdir(data_directory) if f.endswith('.bmp')]
+data_directory = "./dataset/train_data"  
 
-# Grupiranje podataka po ID-ovima (npr. 101, 102, ..., 110)
-data = []
-labels = []
+def load_database():
+    database = []
+    labels = []
+    files = [f for f in os.listdir(data_directory) if f.endswith('.bmp')]
 
-for file_name in all_files:
-    base_id = file_name.split("_")[0]  # Ekstrahiranje ID-a (npr. "101")
-    
-    # Učitavanje slike
-    image_path = os.path.join(data_directory, file_name)
-    image = io.imread(image_path, as_gray=True)  # Učitavanje slike u grayscale
-    
-    # Predprocesiranje - uklanjanje šuma (Gaussovo zamućenje)
-    image = filters.gaussian(image, sigma=1)
+    for file_name in files:
+        base_id = file_name.split("_")[0]
+        image_path = os.path.join(data_directory, file_name)
+        image = io.imread(image_path, as_gray=True)
+        image = transform.resize(image, IMAGE_SIZE, anti_aliasing=True)  
+        image = filters.gaussian(image, sigma=1)
+        fd, _ = hog(image, orientations=9, pixels_per_cell=(8, 8), cells_per_block=(2, 2), visualize=True)
+        database.append(fd)
+        labels.append(base_id)
 
-    # Ekstrakcija HOG značajki
-    fd, hog_image = hog(image, orientations=9, pixels_per_cell=(8, 8), cells_per_block=(2, 2), visualize=True)
-    
-    # Dodavanje značajki i oznake u liste
-    data.append(fd)
-    labels.append(base_id)  # ID otiska kao labela
+    return np.array(database), np.array(labels)
 
-# Provjera ravnoteže podataka prije podjele na trening i test skupove
-print("Distribucija oznaka prije podjele:", Counter(labels))
+def search_fingerprint():
+    file_path = filedialog.askopenfilename(filetypes=[("Image files", "*.bmp;*.jpg;*.png;*.tif")])
 
-# Pretvaranje podataka u numpy array
-X = np.array(data)
-y = np.array(labels)
+    if not file_path:
+        status_message.set("Nijedna slika nije odabrana.")
+        return
 
-# Podjela podataka na trening i test skupove (80% za trening, 20% za testiranje)
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+    query_image = io.imread(file_path, as_gray=True)
+    query_image = transform.resize(query_image, IMAGE_SIZE, anti_aliasing=True)  
+    query_image = filters.gaussian(query_image, sigma=1)
+    query_features, _ = hog(query_image, orientations=9, pixels_per_cell=(8, 8), cells_per_block=(2, 2), visualize=True)
 
-# Kreiranje SVM modela
-model = svm.SVC(kernel='linear')
+    similarities = cosine_similarity([query_features], database_features)
+    best_match_idx = np.argmax(similarities)
+    best_match_label = database_labels[best_match_idx]
+    similarity_score = similarities[0, best_match_idx]
 
-# Trening modela
-model.fit(X_train, y_train)
+    status_message.set(f"Najbolji pogodak: {best_match_label} s sličnošću od {similarity_score * 100:.2f}%")
 
-# Predviđanje na testnim podacima
-y_pred = model.predict(X_test)
+ctk.set_appearance_mode("System")  
+ctk.set_default_color_theme("blue")
 
-# Evaluacija modela - točnost
-accuracy = accuracy_score(y_test, y_pred)
-print(f"Točnost modela: {accuracy * 100:.2f}%")
+root = ctk.CTk()
+root.title("Fingerprint Search")
+root.geometry("500x300")
 
-# Evaluacija modela - FAR (False Acceptance Rate) i FRR (False Rejection Rate)
-cm = confusion_matrix(y_test, y_pred)
-tp = cm[0, 0]  # True Positives
-fn = cm[0, 1]  # False Negatives
-fp = cm[1, 0]  # False Positives
-tn = cm[1, 1]  # True Negatives
+status_message = ctk.StringVar()
+status_message.set("Učitavam bazu otisaka...")
 
-# FAR (False Acceptance Rate)
-FAR = fp / (fp + tn) if (fp + tn) != 0 else 0
-# FRR (False Rejection Rate)
-FRR = fn / (fn + tp) if (fn + tp) != 0 else 0
+database_features, database_labels = load_database()
+status_message.set("Baza uspješno učitana.")
 
-print(f"FAR (False Acceptance Rate): {FAR * 100:.2f}%")
-print(f"FRR (False Rejection Rate): {FRR * 100:.2f}%")
-# Ispis broja slika u direktoriju
+ctk.CTkLabel(root, text="Odaberite otisak prsta za pretraživanje:", font=("Arial", 16)).pack(pady=20)
+ctk.CTkButton(root, text="Odaberi sliku", command=search_fingerprint, width=200, height=40).pack(pady=10)
+ctk.CTkLabel(root, textvariable=status_message, font=("Arial", 14), wraplength=400, justify="center").pack(pady=20)
 
-
-# Vizualizacija HOG značajki za prvi uzorak
-image_path = os.path.join(data_directory, all_files[random.randint(0,len(all_files)-1)])  
-image = io.imread(image_path, as_gray=True)
-fd, hog_image = hog(image, orientations=9, pixels_per_cell=(8, 8), cells_per_block=(2, 2), visualize=True)
-
-plt.figure(figsize=(8, 4))
-plt.subplot(121)
-plt.imshow(image, cmap=plt.cm.gray)
-plt.title('Original Image')
-plt.subplot(122)
-plt.imshow(hog_image, cmap=plt.cm.gray)
-plt.title('HOG Features')
-plt.show()
+root.mainloop()
