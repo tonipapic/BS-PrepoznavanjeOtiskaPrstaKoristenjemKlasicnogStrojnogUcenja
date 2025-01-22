@@ -3,10 +3,8 @@ import random
 import numpy as np
 from skimage.feature import hog
 from sklearn import svm
-from sklearn.model_selection import train_test_split
 from skimage import io, filters
 from sklearn.metrics import accuracy_score, confusion_matrix
-import matplotlib.pyplot as plt
 from collections import Counter
 
 # Putanja do direktorija sa slikama
