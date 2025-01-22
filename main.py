@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 from collections import Counter
 
 # Putanja do direktorija sa slikama
-data_directory = "./dataset/train_data"  # Ovdje zamijeniti stvarnom putanjom
+data_directory = "./dataset/train_data"
 
 # Učitavanje svih .bmp datoteka u direktoriju
 all_files = [f for f in os.listdir(data_directory) if f.endswith('.bmp')]
