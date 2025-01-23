@@ -6,7 +6,7 @@ from sklearn import svm
 from skimage import io, filters
 from sklearn.metrics import accuracy_score, confusion_matrix
 from collections import Counter
-import matplotlib.pyplot as plt  # Dodan import za matplotlib
+import matplotlib.pyplot as plt
 
 # Putanja do direktorija sa slikama
 data_directory = "./dataset/train_data"
